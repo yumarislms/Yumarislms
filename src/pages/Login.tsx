@@ -12,6 +12,16 @@ export default function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [adminClickCount, setAdminClickCount] = useState(0);
+  const [showAdmin, setShowAdmin] = useState(false);
+
+  useEffect(() => {
+    if (adminClickCount >= 5) {
+      setShowAdmin(true);
+      toast.info('Super Admin mode diaktifkan');
+      setAdminClickCount(0);
+    }
+  }, [adminClickCount]);
 
   useEffect(() => {
     if (user && !loading) {
@@ -57,9 +67,13 @@ export default function Login() {
         className="w-full max-w-md rounded-[32px] sm:rounded-[48px] bg-white p-6 sm:p-10 shadow-2xl shadow-slate-200 border border-white"
       >
         <div className="mb-8 sm:mb-10 text-center">
-          <div className="mx-auto mb-6 flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl sm:rounded-3xl bg-indigo-900 text-white shadow-2xl shadow-indigo-200 transform -rotate-6">
+          <button 
+            type="button"
+            onClick={() => setAdminClickCount(prev => prev + 1)}
+            className="mx-auto mb-6 flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl sm:rounded-3xl bg-indigo-900 text-white shadow-2xl shadow-indigo-200 transform -rotate-6 transition-transform active:scale-90"
+          >
             <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500" />
-          </div>
+          </button>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 italic tracking-tighter uppercase leading-none">Zona Prestasi</h1>
           <p className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 italic">Official Portal Belajar</p>
         </div>
@@ -100,23 +114,30 @@ export default function Login() {
           </button>
         </form>
 
-        <div className="relative my-8 sm:my-10">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-100"></div>
-          </div>
-          <div className="relative flex justify-center text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] italic">
-            <span className="bg-white px-4 text-slate-400">Khusus Super Admin</span>
-          </div>
-        </div>
+        {showAdmin && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="relative my-8 sm:my-10">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-100"></div>
+              </div>
+              <div className="relative flex justify-center text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] italic">
+                <span className="bg-white px-4 text-slate-400">Panel Super Admin</span>
+              </div>
+            </div>
 
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading || isSubmitting}
-          className="flex w-full items-center justify-center gap-3 sm:gap-4 rounded-xl sm:rounded-2xl border-2 border-slate-100 bg-white px-4 sm:px-6 py-3 sm:py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-600 transition-all hover:border-indigo-600 hover:text-indigo-900 active:scale-95 italic"
-        >
-          <Chrome className="h-5 w-5 text-indigo-600" />
-          Login dengan Google
-        </button>
+            <button
+              onClick={handleGoogleLogin}
+              disabled={loading || isSubmitting}
+              className="flex w-full items-center justify-center gap-3 sm:gap-4 rounded-xl sm:rounded-2xl border-2 border-slate-100 bg-white px-4 sm:px-6 py-3 sm:py-4 text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-600 transition-all hover:border-indigo-600 hover:text-indigo-900 active:scale-95 italic"
+            >
+              <Chrome className="h-5 w-5 text-indigo-600" />
+              Login dengan Google
+            </button>
+          </motion.div>
+        )}
 
         <div className="mt-12 text-center">
           <p className="text-[10px] font-black tracking-widest text-slate-300 uppercase italic">
