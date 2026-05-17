@@ -8,9 +8,12 @@ import { toast } from 'sonner';
 
 interface Question {
   id: string;
+  type?: 'single' | 'multiple' | 'category' | 'text';
   question: string;
   options: string[];
   correctAnswerIndex: number;
+  correctAnswerIndices?: number[];
+  textAnswer?: string;
 }
 
 interface Quiz {
@@ -27,8 +30,8 @@ export default function QuizPage() {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentQuestionIdx, setCurrentQuestionIdx] = useState(0);
-  const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
-  const [answers, setAnswers] = useState<number[]>([]);
+  const [selectedAnswer, setSelectedAnswer] = useState<any>(null);
+  const [answers, setAnswers] = useState<any[]>([]);
   const [isFinished, setIsFinished] = useState(false);
   const [score, setScore] = useState(0);
 
@@ -43,24 +46,40 @@ export default function QuizPage() {
   };
 
   const processQuizData = (data: any): Quiz => {
-    let questions = [...(data.questions || [])];
+    let questions = [...(data.questions || [])].map(q => ({
+      ...q,
+      type: q.type || 'single'
+    }));
     
     // 1. Shuffle Questions
     questions = shuffleArray(questions);
 
-    // 2. Shuffle Options for each question
+    // 2. Shuffle Options for specific types
     questions = questions.map(q => {
-      const originalOptions = q.options;
-      const correctOptionText = originalOptions[q.correctAnswerIndex];
-      
-      const shuffledOptions = shuffleArray(originalOptions);
-      const newCorrectIndex = shuffledOptions.findIndex(opt => opt === correctOptionText);
+      if (q.type === 'single') {
+        const originalOptions = q.options;
+        const correctOptionText = originalOptions[q.correctAnswerIndex];
+        
+        const shuffledOptions = shuffleArray(originalOptions);
+        const newCorrectIndex = shuffledOptions.findIndex(opt => opt === correctOptionText);
 
-      return {
-        ...q,
-        options: shuffledOptions,
-        correctAnswerIndex: newCorrectIndex
-      };
+        return { ...q, options: shuffledOptions, correctAnswerIndex: newCorrectIndex };
+      }
+      
+      if (q.type === 'multiple') {
+        const originalOptions = q.options;
+        const correctOptionsTexts = (q.correctAnswerIndices || []).map((idx: number) => originalOptions[idx]);
+        
+        const shuffledOptions = shuffleArray(originalOptions);
+        const newCorrectIndices = shuffledOptions
+          .map((opt, idx) => correctOptionsTexts.includes(opt) ? idx : -1)
+          .filter(idx => idx !== -1);
+
+        return { ...q, options: shuffledOptions, correctAnswerIndices: newCorrectIndices };
+      }
+
+      // 'category' and 'text' types don't shuffle options/statements generally to keep order
+      return q;
     });
 
     return {
@@ -80,28 +99,23 @@ export default function QuizPage() {
         const processed = processQuizData({ id: quizDoc.id, ...quizDoc.data() });
         setQuiz(processed);
       } else {
-        // Fallback / Placeholder for demo if no quiz exists
+        // Fallback demo data with types
         const demoData = {
           id: 'demo',
           title: 'Simulasi Seleksi Dasar',
           questions: [
             {
               id: '1',
-              question: 'Apa kepanjangan dari IPDN yang merupakan salah satu Sekolah Kedinasan populer?',
-              options: ['Institut Pemerintahan Dalam Negeri', 'Institut Pendidikan Dalam Negeri', 'Ikatan Pendidikan Dalam Negeri', 'Institut Pemerintahan Daerah Nasional'],
+              type: 'single',
+              question: 'Apa kepanjangan dari IPDN?',
+              options: ['Institut Pemerintahan Dalam Negeri', 'Institut Pendidikan Dalam Negeri', 'Ikatan Pendidikan Dalam Negeri'],
               correctAnswerIndex: 0
             },
             {
               id: '2',
-              question: 'Materi seleksi utama untuk bisa lolos ke Sekolah Kedinasan (STIS, STAN, IPDN) adalah...',
-              options: ['SKD (Seleksi Kompetensi Dasar)', 'SKB (Seleksi Kompetensi Bidang)', 'TPA (Tes Potensi Akademik)', 'TBI (Tes Bahasa Inggris)'],
-              correctAnswerIndex: 0
-            },
-            {
-              id: '3',
-              question: 'Berapa durasi waktu standar pengerjaan 100 soal SKD dalam sistem CAT?',
-              options: ['90 Menit', '100 Menit', '120 Menit', '60 Menit'],
-              correctAnswerIndex: 1
+              type: 'text',
+              question: 'Tuliskan ibukota Indonesia saat ini (2024)?',
+              textAnswer: 'Jakarta'
             }
           ]
         };
@@ -119,7 +133,19 @@ export default function QuizPage() {
   }, [id]);
 
   const handleNext = () => {
-    if (selectedAnswer === null) return;
+    const q = quiz?.questions[currentQuestionIdx];
+    if (!q) return;
+
+    let isAnswered = false;
+    if (q.type === 'single') isAnswered = selectedAnswer !== null;
+    else if (q.type === 'multiple') isAnswered = (selectedAnswer as number[])?.length > 0;
+    else if (q.type === 'category') {
+      const answers = (selectedAnswer as Record<number, boolean>) || {};
+      isAnswered = q.options.every((_, idx) => answers[idx] !== undefined);
+    }
+    else if (q.type === 'text') isAnswered = (selectedAnswer as string)?.trim().length > 0;
+
+    if (!isAnswered) return;
     
     const newAnswers = [...answers, selectedAnswer];
     setAnswers(newAnswers);
@@ -132,13 +158,34 @@ export default function QuizPage() {
     }
   };
 
-  const finishQuiz = async (finalAnswers: number[]) => {
+  const finishQuiz = async (finalAnswers: any[]) => {
     if (!quiz) return;
     
     let correctCount = 0;
     quiz.questions.forEach((q, idx) => {
-      if (q.correctAnswerIndex === finalAnswers[idx]) {
-        correctCount++;
+      const ans = finalAnswers[idx];
+      
+      if (q.type === 'single') {
+        if (q.correctAnswerIndex === ans) correctCount++;
+      } else if (q.type === 'multiple') {
+        const userIndices = (ans as number[]) || [];
+        const correctIndices = q.correctAnswerIndices || [];
+        if (userIndices.length === correctIndices.length && 
+            userIndices.every(i => correctIndices.includes(i))) {
+          correctCount++;
+        }
+      } else if (q.type === 'category') {
+        const userAnswers = (ans as Record<number, boolean>) || {};
+        const correctIndices = q.correctAnswerIndices || []; // indices that should be true
+        const isCorrect = q.options.every((_, idx) => {
+          const shouldBeTrue = correctIndices.includes(idx);
+          return userAnswers[idx] === shouldBeTrue;
+        });
+        if (isCorrect) correctCount++;
+      } else if (q.type === 'text') {
+        if ((ans as string)?.toLowerCase().trim() === (q.textAnswer as string)?.toLowerCase().trim()) {
+          correctCount++;
+        }
       }
     });
 
@@ -275,35 +322,114 @@ export default function QuizPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:gap-5">
-              {currentQuestion.options.map((option, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setSelectedAnswer(idx)}
-                  className={`flex w-full items-center justify-between rounded-[24px] sm:rounded-[32px] border-4 p-5 sm:p-8 text-left transition-all relative overflow-hidden group ${
-                    selectedAnswer === idx 
-                      ? 'border-indigo-900 bg-indigo-50/50 shadow-2xl scale-[1.01] sm:translate-x-2' 
-                      : 'border-white bg-white hover:border-indigo-100 hover:shadow-xl'
-                  }`}
-                >
-                  <div className="flex items-center gap-4 sm:gap-6 relative z-10 w-full">
-                      <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0 flex items-center justify-center font-black transition-all ${
-                          selectedAnswer === idx ? 'bg-indigo-900 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600'
-                      }`}>
-                          {String.fromCharCode(65 + idx)}
-                      </div>
-                      <span className={`flex-1 text-sm sm:text-lg font-black italic tracking-tight transition-colors ${
-                          selectedAnswer === idx ? 'text-indigo-900' : 'text-slate-600'
-                      }`}>{option}</span>
+              {currentQuestion.type === 'text' ? (
+                <div className="bg-white p-8 rounded-[32px] sm:rounded-[40px] border-4 border-slate-100 shadow-xl">
+                  <label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-4 block">Jawaban Anda</label>
+                  <input 
+                    type="text"
+                    autoFocus
+                    placeholder="Tuliskan jawaban di sini..."
+                    className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-5 sm:p-8 text-xl sm:text-2xl font-black italic outline-none focus:border-indigo-600 transition-all"
+                    value={(selectedAnswer as string) || ''}
+                    onChange={e => setSelectedAnswer(e.target.value)}
+                  />
+                </div>
+              ) : currentQuestion.type === 'category' ? (
+                <div className="bg-white rounded-[32px] sm:rounded-[40px] border-4 border-slate-100 shadow-xl overflow-hidden">
+                  <div className="grid grid-cols-[1fr_80px_80px] sm:grid-cols-[1fr_120px_120px] bg-slate-50 border-b-2 border-slate-100">
+                    <div className="p-4 sm:p-6 text-[10px] font-black uppercase tracking-widest text-slate-400">Pernyataan</div>
+                    <div className="p-4 sm:p-6 text-center text-[10px] font-black uppercase tracking-widest text-indigo-900 border-l border-slate-100">Benar</div>
+                    <div className="p-4 sm:p-6 text-center text-[10px] font-black uppercase tracking-widest text-orange-500 border-l border-slate-100">Salah</div>
                   </div>
-                  {selectedAnswer === idx && <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-900 relative z-10 shrink-0 ml-2" />}
-                </button>
-              ))}
+                  <div className="divide-y divide-slate-100">
+                    {currentQuestion.options.map((option, idx) => {
+                      const currentAnswers = (selectedAnswer as Record<number, boolean>) || {};
+                      const choice = currentAnswers[idx];
+                      
+                      return (
+                        <div key={idx} className={`grid grid-cols-[1fr_80px_80px] sm:grid-cols-[1fr_120px_120px] items-center transition-colors ${choice === undefined ? 'bg-white' : 'bg-indigo-50/20'}`}>
+                          <div className="p-4 sm:p-6 text-xs sm:text-base font-bold text-slate-700">{option}</div>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAnswer({ ...currentAnswers, [idx]: true })}
+                            className={`p-4 sm:p-6 h-full flex items-center justify-center border-l border-slate-100 transition-all ${choice === true ? 'bg-indigo-900 text-white' : 'bg-transparent text-slate-200 hover:bg-indigo-50 hover:text-indigo-900'}`}
+                          >
+                            <CheckCircle2 className="h-6 w-6" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedAnswer({ ...currentAnswers, [idx]: false })}
+                            className={`p-4 sm:p-6 h-full flex items-center justify-center border-l border-slate-100 transition-all ${choice === false ? 'bg-orange-500 text-white' : 'bg-transparent text-slate-200 hover:bg-orange-50 hover:text-orange-500'}`}
+                          >
+                            <CheckCircle2 className="h-6 w-6" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                currentQuestion.options.map((option, idx) => {
+                  const isMultiple = currentQuestion.type === 'multiple';
+                  const isSelected = isMultiple 
+                    ? ((selectedAnswer as number[])?.includes(idx))
+                    : (selectedAnswer === idx);
+
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        if (isMultiple) {
+                          const current = (selectedAnswer as number[]) || [];
+                          const next = current.includes(idx) 
+                            ? current.filter(i => i !== idx) 
+                            : [...current, idx];
+                          setSelectedAnswer(next);
+                        } else {
+                          setSelectedAnswer(idx);
+                        }
+                      }}
+                      className={`flex w-full items-center justify-between rounded-[24px] sm:rounded-[32px] border-4 p-5 sm:p-8 text-left transition-all relative overflow-hidden group ${
+                        isSelected 
+                          ? 'border-indigo-900 bg-indigo-50/50 shadow-2xl scale-[1.01] sm:translate-x-2' 
+                          : 'border-white bg-white hover:border-indigo-100 hover:shadow-xl'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4 sm:gap-6 relative z-10 w-full">
+                          <div className={`h-10 w-10 sm:h-12 sm:w-12 rounded-xl sm:rounded-2xl shrink-0 flex items-center justify-center font-black transition-all ${
+                              isSelected ? 'bg-indigo-900 text-white' : 'bg-slate-50 text-slate-400 group-hover:bg-indigo-100 group-hover:text-indigo-600'
+                          }`}>
+                              {String.fromCharCode(65 + idx)}
+                          </div>
+                          <span className={`flex-1 text-sm sm:text-lg font-black italic tracking-tight transition-colors ${
+                              isSelected ? 'text-indigo-900' : 'text-slate-600'
+                          }`}>{option}</span>
+                      </div>
+                      {isSelected && (
+                        isMultiple 
+                          ? <div className="h-6 w-6 sm:h-8 sm:w-8 bg-indigo-900 rounded-lg flex items-center justify-center relative z-10 shrink-0 ml-2"><CheckCircle2 className="h-5 w-5 sm:h-6 sm:w-6 text-white" /></div>
+                          : <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-indigo-900 relative z-10 shrink-0 ml-2" />
+                      )}
+                    </button>
+                  );
+                })
+              )}
             </div>
 
             <div className="pt-4 sm:pt-8">
               <button
                 onClick={handleNext}
-                disabled={selectedAnswer === null}
+                disabled={(() => {
+                    const q = currentQuestion;
+                    if (q.type === 'single') return selectedAnswer === null;
+                    if (q.type === 'multiple') return (selectedAnswer as number[])?.length === 0;
+                    if (q.type === 'category') {
+                      const answers = (selectedAnswer as Record<number, boolean>) || {};
+                      return !q.options.every((_, idx) => answers[idx] !== undefined);
+                    }
+                    if (q.type === 'text') return !(selectedAnswer as string)?.trim();
+                    return selectedAnswer === null;
+                })()}
                 className="flex w-full items-center justify-center gap-4 rounded-[24px] sm:rounded-[32px] bg-indigo-900 py-6 sm:py-8 text-base sm:text-xl font-black uppercase tracking-[0.2em] text-white shadow-[0_20px_50px_rgba(49,46,129,0.3)] transition-all hover:bg-black active:scale-[0.98] disabled:opacity-30 disabled:shadow-none italic"
               >
                 {currentQuestionIdx === quiz.questions.length - 1 ? 'SELESAIKAN' : 'LANJUT'}

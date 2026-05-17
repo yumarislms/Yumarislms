@@ -27,7 +27,14 @@ export default function AdminDashboard() {
     materialId: '', 
     title: '', 
     questions: [
-      { question: '', options: ['', '', '', ''], correctAnswerIndex: 0 }
+      { 
+        type: 'single',
+        question: '', 
+        options: ['', '', '', ''], 
+        correctAnswerIndex: 0,
+        correctAnswerIndices: [] as number[],
+        textAnswer: ''
+      }
     ] 
   });
   const [newUser, setNewUser] = useState({ username: '', password: '', displayName: '', role: 'student', classId: '' });
@@ -141,7 +148,18 @@ export default function AdminDashboard() {
 
       await setDoc(doc(db, 'quizzes', newQuiz.materialId), quizData, { merge: true });
       
-      setNewQuiz({ materialId: '', title: '', questions: [{ question: '', options: ['', '', '', ''], correctAnswerIndex: 0 }] });
+      setNewQuiz({ 
+        materialId: '', 
+        title: '', 
+        questions: [{ 
+          type: 'single',
+          question: '', 
+          options: ['', '', '', ''], 
+          correctAnswerIndex: 0,
+          correctAnswerIndices: [],
+          textAnswer: ''
+        }] 
+      });
       setEditingQuizId(null);
       setShowAddQuizForm(false);
       toast.success(editingQuizId ? 'Kuis berhasil diperbarui' : 'Kuis berhasil diterbitkan');
@@ -271,7 +289,15 @@ export default function AdminDashboard() {
     setNewQuiz({
       materialId: q.materialId,
       title: q.title,
-      questions: JSON.parse(JSON.stringify(q.questions))
+      questions: JSON.parse(JSON.stringify(q.questions)).map((ques: any) => ({
+        type: 'single', // default
+        question: '',
+        options: [],
+        correctAnswerIndex: 0,
+        correctAnswerIndices: [],
+        textAnswer: '',
+        ...ques // spread existing
+      }))
     });
     setEditingQuizId(q.id);
     setShowAddQuizForm(true);
@@ -943,7 +969,18 @@ export default function AdminDashboard() {
                   <button type="button" onClick={() => {
                     setShowAddQuizForm(false);
                     setEditingQuizId(null);
-                    setNewQuiz({ materialId: '', title: '', questions: [{ question: '', options: ['', '', '', ''], correctAnswerIndex: 0 }] });
+                    setNewQuiz({ 
+                      materialId: '', 
+                      title: '', 
+                      questions: [{ 
+                        type: 'single',
+                        question: '', 
+                        options: ['', '', '', ''], 
+                        correctAnswerIndex: 0,
+                        correctAnswerIndices: [],
+                        textAnswer: ''
+                      }] 
+                    });
                   }} className="absolute top-8 right-8 text-slate-400 hover:text-red-500 transition-colors">
                     <X className="w-8 h-8" />
                   </button>
@@ -983,82 +1020,143 @@ export default function AdminDashboard() {
                             <div key={qIdx} className="rounded-[32px] border-4 border-slate-50 p-8 relative bg-slate-50/30">
                                 <span className="absolute -top-4 -left-4 bg-indigo-900 text-white w-10 h-10 rounded-2xl flex items-center justify-center font-black italic shadow-lg">#{qIdx + 1}</span>
                                 <div className="space-y-6">
-                                    <input 
-                                        type="text"
-                                        placeholder="Tulis pertanyaan di sini..."
-                                        className="w-full bg-transparent border-b-2 border-slate-200 p-2 text-xl font-black italic outline-none focus:border-orange-500 transition-all"
-                                        value={q.question}
-                                        onChange={e => {
-                                            const updated = [...newQuiz.questions];
-                                            updated[qIdx] = { ...updated[qIdx], question: e.target.value };
-                                            setNewQuiz({...newQuiz, questions: updated});
-                                        }}
-                                    />
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {q.options.map((opt, oIdx) => (
-                                            <div key={oIdx} className="flex items-center gap-3 relative group/opt">
-                                                <button
-                                                    type="button"
-                                                    onClick={() => {
-                                                        const updated = [...newQuiz.questions];
-                                                        updated[qIdx] = { ...updated[qIdx], correctAnswerIndex: oIdx };
-                                                        setNewQuiz({...newQuiz, questions: updated});
-                                                    }}
-                                                    className={`h-10 w-10 rounded-xl flex items-center justify-center font-black transition-all shrink-0 ${
-                                                        q.correctAnswerIndex === oIdx ? 'bg-orange-500 text-white' : 'bg-white text-slate-300 border-2 border-slate-100'
-                                                    }`}
-                                                >
-                                                    {String.fromCharCode(65 + oIdx)}
-                                                </button>
-                                                <input 
-                                                    type="text"
-                                                    placeholder={`Opsi ${String.fromCharCode(65 + oIdx)}`}
-                                                    className="flex-1 bg-white border-2 border-slate-100 rounded-xl p-3 text-sm font-bold outline-none focus:border-indigo-600"
-                                                    value={opt}
-                                                    onChange={e => {
-                                                        const updated = [...newQuiz.questions];
-                                                        const options = [...updated[qIdx].options];
-                                                        options[oIdx] = e.target.value;
-                                                        updated[qIdx] = { ...updated[qIdx], options };
-                                                        setNewQuiz({...newQuiz, questions: updated});
-                                                    }}
-                                                />
-                                                {q.options.length > 2 && (
+                                    <div className="flex flex-col md:flex-row gap-4">
+                                        <div className="flex-1">
+                                            <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Tipe Pertanyaan</label>
+                                            <select 
+                                                className="w-full bg-slate-100 border-2 border-slate-100 rounded-xl p-2 text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-600"
+                                                value={q.type || 'single'}
+                                                onChange={e => {
+                                                    const updated = [...newQuiz.questions];
+                                                    updated[qIdx] = { ...updated[qIdx], type: e.target.value };
+                                                    setNewQuiz({...newQuiz, questions: updated});
+                                                }}
+                                            >
+                                                <option value="single">Pilihan Ganda (1 Benar)</option>
+                                                <option value="multiple">Pilihan Ganda Kompleks (&gt;1 Benar)</option>
+                                                <option value="category">Pilihan Ganda Kategori (Pernyataan)</option>
+                                                <option value="text">Isian Singkat</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex-[3]">
+                                            <label className="text-[8px] font-black uppercase tracking-widest text-slate-400 mb-1 block">Pertanyaan</label>
+                                            <input 
+                                                type="text"
+                                                placeholder="Tulis pertanyaan di sini..."
+                                                className="w-full bg-transparent border-b-2 border-slate-200 p-2 text-xl font-black italic outline-none focus:border-orange-500 transition-all"
+                                                value={q.question}
+                                                onChange={e => {
+                                                    const updated = [...newQuiz.questions];
+                                                    updated[qIdx] = { ...updated[qIdx], question: e.target.value };
+                                                    setNewQuiz({...newQuiz, questions: updated});
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Conditional Inputs based on Type */}
+                                    {q.type === 'text' ? (
+                                        <div className="bg-white p-6 rounded-2xl border-2 border-slate-100">
+                                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Jawaban Benar</label>
+                                            <input 
+                                                type="text"
+                                                placeholder="Tulis jawaban persis di sini..."
+                                                className="w-full border-2 border-slate-100 rounded-xl p-4 font-bold outline-none focus:border-indigo-600"
+                                                value={q.textAnswer || ''}
+                                                onChange={e => {
+                                                    const updated = [...newQuiz.questions];
+                                                    updated[qIdx] = { ...updated[qIdx], textAnswer: e.target.value };
+                                                    setNewQuiz({...newQuiz, questions: updated});
+                                                }}
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            {q.options.map((opt, oIdx) => (
+                                                <div key={oIdx} className="flex items-center gap-3 relative group/opt">
                                                     <button
                                                         type="button"
                                                         onClick={() => {
                                                             const updated = [...newQuiz.questions];
-                                                            const options = updated[qIdx].options.filter((_, i) => i !== oIdx);
-                                                            let newCorrectIndex = updated[qIdx].correctAnswerIndex;
-                                                            if (newCorrectIndex === oIdx) newCorrectIndex = 0;
-                                                            else if (newCorrectIndex > oIdx) newCorrectIndex--;
-                                                            
-                                                            updated[qIdx] = { ...updated[qIdx], options, correctAnswerIndex: newCorrectIndex };
+                                                            if (q.type === 'multiple' || q.type === 'category') {
+                                                                const currentIndices = updated[qIdx].correctAnswerIndices || [];
+                                                                const newIndices = currentIndices.includes(oIdx)
+                                                                    ? currentIndices.filter((i: number) => i !== oIdx)
+                                                                    : [...currentIndices, oIdx];
+                                                                updated[qIdx] = { ...updated[qIdx], correctAnswerIndices: newIndices };
+                                                            } else {
+                                                                updated[qIdx] = { ...updated[qIdx], correctAnswerIndex: oIdx };
+                                                            }
                                                             setNewQuiz({...newQuiz, questions: updated});
                                                         }}
-                                                        className="absolute -right-2 -top-2 bg-white text-red-400 opacity-0 group-hover/opt:opacity-100 transition-opacity p-1 rounded-full shadow-md border border-slate-100 hover:text-red-600"
+                                                        className={`h-10 w-10 rounded-xl flex items-center justify-center font-black transition-all shrink-0 ${
+                                                            (q.type === 'multiple' || q.type === 'category') 
+                                                                ? (q.correctAnswerIndices?.includes(oIdx) ? 'bg-indigo-600 text-white' : 'bg-white text-slate-300 border-2 border-slate-100')
+                                                                : (q.correctAnswerIndex === oIdx ? 'bg-orange-500 text-white' : 'bg-white text-slate-300 border-2 border-slate-100')
+                                                        }`}
                                                     >
-                                                        <X className="w-3 h-3" />
+                                                        {(q.type === 'category') ? (q.correctAnswerIndices?.includes(oIdx) ? 'V' : 'X') : String.fromCharCode(65 + oIdx)}
                                                     </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                        {q.options.length < 6 && (
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const updated = [...newQuiz.questions];
-                                                    const options = [...updated[qIdx].options, ''];
-                                                    updated[qIdx] = { ...updated[qIdx], options };
-                                                    setNewQuiz({...newQuiz, questions: updated});
-                                                }}
-                                                className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 p-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:border-indigo-200 hover:text-indigo-400 transition-all"
-                                            >
-                                                <Plus className="w-4 h-4" />
-                                                Tambah Opsi
-                                            </button>
-                                        )}
-                                    </div>
+                                                    <input 
+                                                        type="text"
+                                                        placeholder={q.type === 'category' ? `Pernyataan ${oIdx + 1}` : `Opsi ${String.fromCharCode(65 + oIdx)}`}
+                                                        className="flex-1 bg-white border-2 border-slate-100 rounded-xl p-3 text-sm font-bold outline-none focus:border-indigo-600"
+                                                        value={opt}
+                                                        onChange={e => {
+                                                            const updated = [...newQuiz.questions];
+                                                            const options = [...updated[qIdx].options];
+                                                            options[oIdx] = e.target.value;
+                                                            updated[qIdx] = { ...updated[qIdx], options };
+                                                            setNewQuiz({...newQuiz, questions: updated});
+                                                        }}
+                                                    />
+                                                    {q.options.length > 2 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                const updated = [...newQuiz.questions];
+                                                                const options = updated[qIdx].options.filter((_, i) => i !== oIdx);
+                                                                
+                                                                // Adjust indices
+                                                                if (q.type === 'multiple' || q.type === 'category') {
+                                                                    let currentIndices = updated[qIdx].correctAnswerIndices || [];
+                                                                    let newIndices = currentIndices
+                                                                        .filter((i: number) => i !== oIdx)
+                                                                        .map((i: number) => (i > oIdx ? i - 1 : i));
+                                                                    updated[qIdx] = { ...updated[qIdx], options, correctAnswerIndices: newIndices };
+                                                                } else {
+                                                                    let newCorrectIndex = updated[qIdx].correctAnswerIndex;
+                                                                    if (newCorrectIndex === oIdx) newCorrectIndex = 0;
+                                                                    else if (newCorrectIndex > oIdx) newCorrectIndex--;
+                                                                    updated[qIdx] = { ...updated[qIdx], options, correctAnswerIndex: newCorrectIndex };
+                                                                }
+                                                                
+                                                                setNewQuiz({...newQuiz, questions: updated});
+                                                            }}
+                                                            className="absolute -right-2 -top-2 bg-white text-red-400 opacity-0 group-hover/opt:opacity-100 transition-opacity p-1 rounded-full shadow-md border border-slate-100 hover:text-red-600"
+                                                        >
+                                                            <X className="w-3 h-3" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            {q.options.length < 8 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const updated = [...newQuiz.questions];
+                                                        const options = [...updated[qIdx].options, ''];
+                                                        updated[qIdx] = { ...updated[qIdx], options };
+                                                        setNewQuiz({...newQuiz, questions: updated});
+                                                    }}
+                                                    className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 p-3 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:border-indigo-200 hover:text-indigo-400 transition-all"
+                                                >
+                                                    <Plus className="w-4 h-4" />
+                                                    Tambah {q.type === 'category' ? 'Pernyataan' : 'Opsi'}
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <button 
                                     type="button"
@@ -1079,7 +1177,14 @@ export default function AdminDashboard() {
                             type="button"
                             onClick={() => setNewQuiz({
                                 ...newQuiz,
-                                questions: [...newQuiz.questions, { question: '', options: ['', '', '', ''], correctAnswerIndex: 0 }]
+                                questions: [...newQuiz.questions, { 
+                                    type: 'single',
+                                    question: '', 
+                                    options: ['', '', '', ''], 
+                                    correctAnswerIndex: 0,
+                                    correctAnswerIndices: [],
+                                    textAnswer: ''
+                                }]
                             })}
                             className="flex-1 py-6 rounded-3xl border-4 border-dashed border-slate-100 text-slate-400 font-black uppercase tracking-widest text-xs hover:border-indigo-200 hover:text-indigo-400 transition-all"
                         >
