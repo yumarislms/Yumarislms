@@ -74,7 +74,7 @@ export default function Login() {
           >
             <GraduationCap className="h-8 w-8 sm:h-10 sm:w-10 text-orange-500" />
           </button>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 italic tracking-tighter uppercase leading-none">Zona Prestasi</h1>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 italic tracking-tighter uppercase leading-none">Zona Prestasi Yumaris</h1>
           <p className="mt-4 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 italic">Official Portal Belajar</p>
         </div>
 

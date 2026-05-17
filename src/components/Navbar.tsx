@@ -67,7 +67,7 @@ export default function Navbar() {
               ZONA PRESTASI
             </span>
             <span className="text-[10px] font-black text-orange-500 uppercase tracking-widest">
-              YUMARIS LMS
+              YUMARIS EDITION
             </span>
           </div>
         </Link>

@@ -26,7 +26,7 @@ export default function Sidebar() {
           </div>
           <h1 className="text-white font-black text-lg leading-tight uppercase tracking-tighter">
             ZONA PRESTASI<br />
-            <span className="text-orange-400 text-[10px] tracking-widest font-bold">YUMARIS LMS</span>
+            <span className="text-orange-400 text-[10px] tracking-widest font-bold">YUMARIS EDITION</span>
           </h1>
         </Link>
         
