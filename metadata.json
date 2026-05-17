@@ -1,0 +1,8 @@
+{
+  "name": "ZONA PRESTASI YUMARIS",
+  "description": "Learning Management System (LMS) khusus materi Sekolah Kedinasan dengan fitur kuis, dashboard nilai, pelacakan progres, dan manajemen admin super.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

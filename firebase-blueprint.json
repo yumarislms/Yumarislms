@@ -1,0 +1,121 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Represents a user in the LMS",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "teacher", "admin"] },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Grouping of study materials",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Material": {
+      "title": "Material",
+      "description": "Educational content",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string", "enum": ["article", "video"] },
+        "categoryId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "content", "categoryId"]
+    },
+    "Quiz": {
+      "title": "Quiz",
+      "description": "Assessment for material",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "materialId": { "type": "string" },
+        "questions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "question": { "type": "string" },
+              "options": { "type": "array", "items": { "type": "string" } },
+              "correctAnswerIndex": { "type": "integer" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "materialId", "questions"]
+    },
+    "QuizSubmission": {
+      "title": "QuizSubmission",
+      "description": "User quiz attempt results",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "quizId": { "type": "string" },
+        "score": { "type": "number" },
+        "answers": { "type": "array", "items": { "type": "integer" } },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "quizId", "score"]
+    },
+    "Progress": {
+      "title": "Progress",
+      "description": "Tracking user learning state",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "materialId": { "type": "string" },
+        "status": { "type": "string", "enum": ["started", "completed"] },
+        "lastAccessedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "materialId", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Study categories"
+    },
+    "/materials/{materialId}": {
+      "schema": "Material",
+      "description": "Learning materials"
+    },
+    "/quizzes/{quizId}": {
+      "schema": "Quiz",
+      "description": "Course assessments"
+    },
+    "/submissions/{submissionId}": {
+      "schema": "QuizSubmission",
+      "description": "Quiz results"
+    },
+    "/progress/{progressId}": {
+      "schema": "Progress",
+      "description": "User progress markers"
+    }
+  }
+}
